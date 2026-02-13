@@ -293,8 +293,8 @@
              value="https://masoi-demo.onrender.com" />
 
       <div class="btn-row">
-        <button noscript="createRoom()">🎮 Tạo phòng mới</button>
-        <button noscript="joinRoom()">🚪 Vào phòng</button>
+        <button onclick="createRoom()">🎮 Tạo phòng mới</button>
+        <button onclick="joinRoom()">🚪 Vào phòng</button>
       </div>
 
       <input type="text" id="roomIdInput" placeholder="Nhập mã phòng (khi vào phòng)" />
@@ -328,8 +328,8 @@
       <div class="players" id="waitingPlayers"></div>
 
       <div class="btn-row">
-        <button noscript="startGame()">▶️ Bắt đầu game</button>
-        <button class="btn-secondary" noscript="leaveRoom()">🚪 Rời phòng</button>
+        <button onclick="startGame()">▶️ Bắt đầu game</button>
+        <button class="btn-secondary" onclick="leaveRoom()">🚪 Rời phòng</button>
       </div>
     </div>
 
@@ -339,7 +339,7 @@
         <div class="role-info" id="roleDisplay">🎭 Vai trò của bạn: (chưa có)</div>
 
         <div class="top-actions">
-          <button class="btn-secondary" noscript="toggleRole()">👁️ Ẩn/Hiện vai trò</button>
+          <button class="btn-secondary" onclick="toggleRole()">👁️ Ẩn/Hiện vai trò</button>
           <div class="timer-box" id="timerDisplay">⏱️</div>
         </div>
       </div>
@@ -367,7 +367,7 @@
           <div class="chat-title">💬 Chat</div>
           <div class="chat" id="chatBox"></div>
           <input type="text" id="chatInput" placeholder="Nhập tin nhắn..." />
-          <button noscript="sendMessage()">Gửi</button>
+          <button onclick="sendMessage()">Gửi</button>
         </div>
       </div>
     </div>
@@ -376,7 +376,7 @@
     <div id="endScreen" class="screen">
       <h2 id="winnerDisplay"></h2>
       <p id="endDetail"></p>
-      <button noscript="location.reload()">🔄 Chơi lại</button>
+      <button onclick="location.reload()">🔄 Chơi lại</button>
     </div>
   </div>
 
@@ -708,7 +708,7 @@
         (room.players || []).map(p => `
           <div class="player-card ${p.alive ? '' : 'dead'}"
                id="player-${p.id}"
-               noscript="selectPlayer('${p.id}', ${!!p.alive})">
+               onclick="selectPlayer('${p.id}', ${!!p.alive})">
             <div style="font-size:2em;">${p.alive ? '👤' : '💀'}</div>
             <div><b>${escapeHtml(p.name)}</b></div>
             <div style="font-size:0.85em; opacity:0.95;">${p.alive ? 'Sống' : 'Chết'}</div>
@@ -740,7 +740,7 @@
               Quản trò đang gọi từng vai thực hiện. Khi đến lượt bạn, panel sẽ hiện nút thao tác.
               <div class="tiny" style="margin-top:6px;">Nếu bạn là Sói/Tiên tri/Bảo vệ/Phù thủy, hãy chờ prompt.</div>
             </div>
-            <button class="btn-secondary" noscript="clearSelect()">Bỏ chọn</button>
+            <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
           `;
           return;
         }
@@ -765,8 +765,8 @@
             <h3>🐺 Sói: Chọn người cắn</h3>
             <div class="tiny">Chọn 1 người trong danh sách rồi bấm Xác nhận.</div>
             <div class="btn-row">
-              <button noscript="wolfBite()">Xác nhận cắn</button>
-              <button class="btn-secondary" noscript="clearSelect()">Bỏ chọn</button>
+              <button onclick="wolfBite()">Xác nhận cắn</button>
+              <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
             </div>
           `;
           return;
@@ -777,8 +777,8 @@
             <h3>🛡️ Bảo vệ: Chọn người bảo vệ</h3>
             <div class="tiny">Chọn 1 người rồi bấm Xác nhận.</div>
             <div class="btn-row">
-              <button noscript="guardProtect()">Xác nhận bảo vệ</button>
-              <button class="btn-secondary" noscript="clearSelect()">Bỏ chọn</button>
+              <button onclick="guardProtect()">Xác nhận bảo vệ</button>
+              <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
             </div>
           `;
           return;
@@ -789,8 +789,8 @@
             <h3>🔮 Tiên tri: Chọn người soi</h3>
             <div class="tiny">Chọn 1 người rồi bấm Soi. Kết quả sẽ hiện riêng cho bạn.</div>
             <div class="btn-row">
-              <button noscript="seerView()">Soi</button>
-              <button class="btn-secondary" noscript="clearSelect()">Bỏ chọn</button>
+              <button onclick="seerView()">Soi</button>
+              <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
             </div>
           `;
           return;
@@ -819,12 +819,12 @@
             </div>
 
             <div class="row3">
-              <button noscript="witchSave()" ${canSave ? '' : 'disabled'}>Cứu</button>
-              <button noscript="witchKill()" ${canKill ? '' : 'disabled'}>Độc</button>
-              <button class="btn-secondary" noscript="witchSkip()">Bỏ qua</button>
+              <button onclick="witchSave()" ${canSave ? '' : 'disabled'}>Cứu</button>
+              <button onclick="witchKill()" ${canKill ? '' : 'disabled'}>Độc</button>
+              <button class="btn-secondary" onclick="witchSkip()">Bỏ qua</button>
             </div>
 
-            <button class="btn-secondary" noscript="clearSelect()">Bỏ chọn</button>
+            <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
           `;
           return;
         }
@@ -844,8 +844,8 @@
             <div class="tiny" style="margin-top:6px;">Host có thể bấm Skip để chuyển nhanh.</div>
           </div>
           <div class="btn-row">
-            <button class="btn-secondary" noscript="skipDiscuss()">⏭️ Skip (Host)</button>
-            <button class="btn-secondary" noscript="clearSelect()">Bỏ chọn</button>
+            <button class="btn-secondary" onclick="skipDiscuss()">⏭️ Skip (Host)</button>
+            <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
           </div>
         `;
         return;
@@ -859,8 +859,8 @@
           <h3>🗳️ Bỏ phiếu</h3>
           <div class="tiny">Chọn 1 người ở danh sách rồi bấm Vote.</div>
           <div class="btn-row">
-            <button noscript="vote()">Vote</button>
-            <button class="btn-secondary" noscript="clearSelect()">Bỏ chọn</button>
+            <button onclick="vote()">Vote</button>
+            <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
           </div>
         `;
         return;
