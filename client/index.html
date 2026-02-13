@@ -26,7 +26,12 @@
       backdrop-filter: blur(10px);
     }
 
-    h1 { text-align: center; margin: 8px 0 16px; font-size: 2.2em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+    h1 {
+      text-align: center;
+      margin: 8px 0 16px;
+      font-size: 2.2em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
 
     .screen { display: none; }
     .screen.active { display: block; }
@@ -64,9 +69,7 @@
       background: rgba(255,255,255,0.2);
       font-weight: 800;
     }
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.28);
-    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.28); }
 
     .info-box {
       background: rgba(100,200,255,0.26);
@@ -77,6 +80,9 @@
       line-height: 1.35;
     }
 
+    .tiny { opacity: 0.9; font-size: 13px; line-height: 1.25; }
+
+    /* Players grid */
     .players {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -126,6 +132,7 @@
       pointer-events: none;
     }
 
+    /* Logs */
     .logs {
       background: rgba(0,0,0,0.45);
       padding: 12px;
@@ -170,7 +177,7 @@
     .top-actions {
       display: grid;
       gap: 10px;
-      width: 280px;
+      width: 320px;
     }
 
     .timer-box {
@@ -241,15 +248,34 @@
       word-break: break-word;
     }
 
-    .tiny {
-      opacity: 0.9;
-      font-size: 13px;
-      line-height: 1.25;
+    /* ✅ Role list box */
+    .role-list {
+      background: rgba(0,0,0,0.35);
+      padding: 12px;
+      border-radius: 12px;
+      margin: 10px 0 6px;
     }
+    .role-list h3 { margin-bottom: 6px; }
+    .role-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .tag {
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .tag small { opacity: 0.9; font-weight: 700; }
 
     @media (max-width: 980px) {
       .layout { grid-template-columns: 1fr; }
       .top-actions { width: 100%; grid-template-columns: 1fr 1fr; }
+      .chat { height: 380px; }
     }
   </style>
 </head>
@@ -271,15 +297,33 @@
       <input type="text" id="roomIdInput" placeholder="Nhập mã phòng (khi vào phòng)" />
 
       <div class="info-box">
-        <div><b>Mẹo:</b> Nếu bấm không có phản hồi, mở <b>F12</b> tab <b>Console</b> để xem lỗi.</div>
-        <div class="tiny">Nhớ nhập đúng URL backend Render (không nhất thiết phải có dấu / cuối).</div>
+        <div><b>Luật số người:</b> Game hỗ trợ <b>4 đến 10</b> người (backend cũng phải cho phép).</div>
+        <div class="tiny">Nếu bấm không phản hồi, mở <b>F12</b> tab <b>Console</b> để xem lỗi.</div>
+      </div>
+
+      <div class="role-list">
+        <h3>🎭 Danh sách vai trò (để mọi người cùng biết)</h3>
+        <div class="tiny">
+          Đây là danh sách vai có thể xuất hiện trong ván. Vai thật của mỗi người vẫn được giữ bí mật.
+        </div>
+        <div class="role-tags" id="roleListHome"></div>
       </div>
     </div>
 
     <!-- WAITING -->
     <div id="waitingScreen" class="screen">
       <h2>🏠 Phòng: <span id="roomIdDisplay"></span></h2>
-      <div class="info-box">Chia sẻ mã phòng cho bạn bè! Cần 7-10 người để bắt đầu.</div>
+      <div class="info-box">
+        Chia sẻ mã phòng cho bạn bè!
+        <b>Cần 4 đến 10</b> người để bắt đầu (tuỳ backend).
+      </div>
+
+      <div class="role-list">
+        <h3>🎭 Vai trò trong game</h3>
+        <div class="tiny">Ai cũng xem được danh sách này.</div>
+        <div class="role-tags" id="roleListWaiting"></div>
+      </div>
+
       <div class="players" id="waitingPlayers"></div>
 
       <div class="btn-row">
@@ -304,10 +348,14 @@
         <div class="left">
           <div class="phase-indicator" id="phaseDisplay">⏳</div>
 
+          <div class="role-list">
+            <h3>🎭 Vai trò trong game</h3>
+            <div class="tiny">Hiển thị danh sách vai để mọi người nắm luật.</div>
+            <div class="role-tags" id="roleListInGame"></div>
+          </div>
+
           <div class="logs" id="gameLogs"></div>
-
           <div class="action-panel" id="actionPanel"></div>
-
           <div class="players" id="gamePlayers"></div>
         </div>
 
@@ -330,6 +378,7 @@
   </div>
 
   <script>
+    // ====== Client state ======
     let socket;
     let currentRoom = null;
     let myRole = null;
@@ -337,6 +386,29 @@
 
     let roleVisible = true;
 
+    // ✅ Danh sách vai để mọi người cùng biết (chỉ hiển thị, không phụ thuộc backend)
+    const ROLE_CATALOG = [
+      { name: 'Sói', desc: 'Ban đêm chọn cắn 1 người.' },
+      { name: 'Dân', desc: 'Không có kỹ năng, ban ngày thảo luận và vote.' },
+      { name: 'Tiên tri', desc: 'Ban đêm soi 1 người để biết vai.' },
+      { name: 'Bảo vệ', desc: 'Ban đêm bảo vệ 1 người khỏi bị cắn.' },
+      { name: 'Phù thủy', desc: 'Có thể cứu hoặc giết (thường mỗi loại 1 lần).' }
+    ];
+
+    function renderRoleCatalog() {
+      const html = ROLE_CATALOG.map(r => `
+        <div class="tag">🎭 ${escapeHtml(r.name)} <small>( ${escapeHtml(r.desc)})</small></div>
+      `).join('');
+
+      const ids = ['roleListHome', 'roleListWaiting', 'roleListInGame'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+      });
+    }
+    renderRoleCatalog();
+
+    // ====== Helpers ======
     function showScreen(screenId) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById(screenId).classList.add('active');
@@ -347,9 +419,7 @@
     }
 
     function connectSocket(serverUrl) {
-      // Chống tạo nhiều kết nối khi bấm nhiều lần
       if (socket && socket.connected) return;
-
       socket = io(serverUrl, { transports: ["websocket", "polling"] });
       setupSocketListeners();
     }
@@ -369,10 +439,11 @@
       }
 
       el.innerHTML = roleVisible
-        ? `🎭 Vai trò của bạn: <span style="color:#ffd93d;">${myRole}</span>`
+        ? `🎭 Vai trò của bạn: <span style="color:#ffd93d;">${escapeHtml(myRole)}</span>`
         : `🎭 Vai trò của bạn: <span style="color:#ffd93d;">(đã ẩn)</span>`;
     }
 
+    // ====== Room actions ======
     function createRoom() {
       const name = document.getElementById('playerName').value.trim();
       const serverUrl = normalizeServerUrl(document.getElementById('serverUrl').value);
@@ -422,6 +493,7 @@
       location.reload();
     }
 
+    // ====== Chat ======
     function sendMessage() {
       const msg = document.getElementById('chatInput').value.trim();
       if (!msg) return;
@@ -429,6 +501,7 @@
       document.getElementById('chatInput').value = '';
     }
 
+    // ====== Select player ======
     function selectPlayer(playerId, alive) {
       if (!alive) return;
       selectedTarget = playerId;
@@ -438,6 +511,12 @@
       if (el) el.classList.add('selected');
     }
 
+    function clearSelect() {
+      selectedTarget = null;
+      document.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
+    }
+
+    // ====== Socket listeners ======
     function setupSocketListeners() {
       socket.on('connect', () => console.log('✅ Connected:', socket.id));
 
@@ -463,7 +542,7 @@
 
       socket.on('phaseChange', (room) => {
         renderGameState(room);
-        selectedTarget = null;
+        clearSelect();
       });
 
       socket.on('timerTick', (t) => {
@@ -479,7 +558,7 @@
 
       socket.on('receiveMessage', (data) => {
         const chatBox = document.getElementById('chatBox');
-        chatBox.innerHTML += `<div class="chat-msg"><strong>${data.name}:</strong> ${data.message}</div>`;
+        chatBox.innerHTML += `<div class="chat-msg"><strong>${escapeHtml(data.name)}:</strong> ${escapeHtml(data.message)}</div>`;
         chatBox.scrollTop = chatBox.scrollHeight;
       });
 
@@ -495,6 +574,7 @@
       socket.on('error', (msg) => alert(msg));
     }
 
+    // ====== Render UI ======
     function renderWaitingPlayers(players) {
       const container = document.getElementById('waitingPlayers');
       container.innerHTML = (players || []).map(p => `
@@ -531,10 +611,11 @@
       renderActionPanel(room);
     }
 
+    // ====== Action panel (phụ thuộc phase backend đang dùng) ======
     function renderActionPanel(room) {
       const panel = document.getElementById('actionPanel');
 
-      // ✅ Night actions
+      // Night actions
       if (room.phase === 'night') {
         if (myRole === 'Sói') {
           panel.innerHTML = `
@@ -566,7 +647,7 @@
         } else if (myRole === 'Phù thủy') {
           panel.innerHTML = `
             <h3>🧪 Phù thủy</h3>
-            <div class="tiny">Chọn 1 người rồi dùng thuốc (mỗi loại 1 lần nếu backend có giới hạn).</div>
+            <div class="tiny">Chọn 1 người rồi dùng thuốc.</div>
             <div class="btn-row">
               <button onclick="witchSave()">Cứu</button>
               <button onclick="witchKill()">Giết</button>
@@ -579,13 +660,13 @@
         return;
       }
 
-      // ✅ Discuss phase: 2 phút bàn bạc + nút skip
+      // Discuss phase (nếu backend có)
       if (room.phase === 'discuss') {
         panel.innerHTML = `
-          <h3>💬 Bàn bạc (2 phút)</h3>
+          <h3>💬 Bàn bạc</h3>
           <div class="info-box">
             Hết giờ sẽ tự chuyển qua <b>Vote</b>.
-            <div class="tiny" style="margin-top:6px;">Nút Skip dùng để chuyển nhanh sang vote (thường chỉ host có quyền).</div>
+            <div class="tiny" style="margin-top:6px;">Nếu server hỗ trợ, có thể bấm Skip (thường chỉ host).</div>
           </div>
           <div class="btn-row">
             <button class="btn-secondary" onclick="skipDiscuss()">⏭️ Skip</button>
@@ -595,7 +676,7 @@
         return;
       }
 
-      // ✅ Vote phase: 30-60s (backend quyết định)
+      // Vote phase (nếu backend có)
       if (room.phase === 'vote') {
         panel.innerHTML = `
           <h3>🗳️ Bỏ phiếu</h3>
@@ -608,21 +689,28 @@
         return;
       }
 
-      // fallback
+      // Fallback: nếu backend vẫn dùng 'day' để vote luôn
+      if (room.phase === 'day') {
+        panel.innerHTML = `
+          <h3>☀️ Ban ngày</h3>
+          <div class="tiny">Nếu backend của bạn vote trong phase 'day', dùng nút này.</div>
+          <div class="btn-row">
+            <button onclick="vote()">Vote người đã chọn</button>
+            <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
+          </div>
+        `;
+        return;
+      }
+
       panel.innerHTML = `<div class="info-box">⏳ Đang chờ...</div>`;
     }
 
-    function clearSelect() {
-      selectedTarget = null;
-      document.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
-    }
-
+    // ====== Emits ======
     function skipDiscuss() {
       if (!currentRoom) return;
       socket.emit('skipDiscuss', { roomId: currentRoom });
     }
 
-    // ====== Emit actions ======
     function wolfBite() {
       if (!selectedTarget) return alert('Chọn mục tiêu trước!');
       socket.emit('wolfBite', { roomId: currentRoom, targetId: selectedTarget });
@@ -650,6 +738,7 @@
 
     function vote() {
       if (!selectedTarget) return alert('Chọn người để vote!');
+      // backend của bạn đang dùng event dayVote
       socket.emit('dayVote', { roomId: currentRoom, voteForId: selectedTarget });
     }
 
