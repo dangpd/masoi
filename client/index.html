@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🐺 Ma Sói Online</title>
 
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
@@ -18,7 +19,7 @@
     }
 
     .container {
-      max-width: 1150px;
+      max-width: 1200px;
       margin: 0 auto;
       background: rgba(0,0,0,0.28);
       border-radius: 16px;
@@ -177,7 +178,7 @@
     .top-actions {
       display: grid;
       gap: 10px;
-      width: 320px;
+      width: 340px;
     }
 
     .timer-box {
@@ -282,6 +283,7 @@
 
 <body>
   <div class="container">
+    <h1>🐺 Ma Sói Online</h1>
 
     <!-- HOME -->
     <div id="homeScreen" class="screen active">
@@ -297,15 +299,13 @@
       <input type="text" id="roomIdInput" placeholder="Nhập mã phòng (khi vào phòng)" />
 
       <div class="info-box">
-        <div><b>Luật số người:</b> Game hỗ trợ <b>4 đến 10</b> người (backend cũng phải cho phép).</div>
+        <div><b>Số người:</b> UI hỗ trợ <b>4-10</b> người. (Backend cũng phải cho start game 4-10).</div>
         <div class="tiny">Nếu bấm không phản hồi, mở <b>F12</b> tab <b>Console</b> để xem lỗi.</div>
       </div>
 
       <div class="role-list">
-        <h3>🎭 Danh sách vai trò (để mọi người cùng biết)</h3>
-        <div class="tiny">
-          Đây là danh sách vai có thể xuất hiện trong ván. Vai thật của mỗi người vẫn được giữ bí mật.
-        </div>
+        <h3>🎭 Danh sách vai trò (ai cũng xem được)</h3>
+        <div class="tiny">Danh sách vai có thể xuất hiện trong ván. Vai thật của mỗi người vẫn bí mật.</div>
         <div class="role-tags" id="roleListHome"></div>
       </div>
     </div>
@@ -314,8 +314,7 @@
     <div id="waitingScreen" class="screen">
       <h2>🏠 Phòng: <span id="roomIdDisplay"></span></h2>
       <div class="info-box">
-        Chia sẻ mã phòng cho bạn bè!
-        <b>Cần 4 đến 10</b> người để bắt đầu (tuỳ backend).
+        Chia sẻ mã phòng cho bạn bè! Cần <b>4-10</b> người để bắt đầu.
       </div>
 
       <div class="role-list">
@@ -350,7 +349,7 @@
 
           <div class="role-list">
             <h3>🎭 Vai trò trong game</h3>
-            <div class="tiny">Hiển thị danh sách vai để mọi người nắm luật.</div>
+            <div class="tiny">Hiển thị để mọi người nắm luật.</div>
             <div class="role-tags" id="roleListInGame"></div>
           </div>
 
@@ -378,7 +377,27 @@
   </div>
 
   <script>
-    // ====== Client state ======
+    // ===============================
+    // ✅ CONFIG: timer chạy ở client
+    // ===============================
+    const CLIENT_TIMERS = {
+      night: 45,     // giây
+      discuss: 120,  // giây (2 phút)
+      vote: 60       // giây (bạn đổi 30..60 tùy ý)
+    };
+
+    // Danh sách vai hiển thị cho mọi người
+    const ROLE_CATALOG = [
+      { name: 'Sói', desc: 'Ban đêm chọn cắn 1 người.' },
+      { name: 'Dân làng', desc: 'Ban ngày thảo luận và vote.' },
+      { name: 'Tiên tri', desc: 'Ban đêm soi 1 người (biết Sói/không phải Sói, tùy backend).' },
+      { name: 'Bảo vệ', desc: 'Ban đêm bảo vệ 1 người khỏi bị cắn.' },
+      { name: 'Phù thủy', desc: 'Có thể cứu hoặc giết (thường mỗi loại 1 lần).' }
+    ];
+
+    // ===============================
+    // Client state
+    // ===============================
     let socket;
     let currentRoom = null;
     let myRole = null;
@@ -386,36 +405,21 @@
 
     let roleVisible = true;
 
-    // ✅ Danh sách vai để mọi người cùng biết (chỉ hiển thị, không phụ thuộc backend)
-    const ROLE_CATALOG = [
-      { name: 'Sói', desc: 'Ban đêm chọn cắn 1 người.' },
-      { name: 'Dân', desc: 'Không có kỹ năng, ban ngày thảo luận và vote.' },
-      { name: 'Tiên tri', desc: 'Ban đêm soi 1 người để biết vai.' },
-      { name: 'Bảo vệ', desc: 'Ban đêm bảo vệ 1 người khỏi bị cắn.' },
-      { name: 'Phù thủy', desc: 'Có thể cứu hoặc giết (thường mỗi loại 1 lần).' }
-    ];
+    // Timer state (client)
+    let phaseCountdownInterval = null;
+    let phaseEndsAtMs = null;
+    let currentPhase = null;
 
-    function renderRoleCatalog() {
-      const html = ROLE_CATALOG.map(r => `
-        <div class="tag">🎭 ${escapeHtml(r.name)} <small>( ${escapeHtml(r.desc)})</small></div>
-      `).join('');
-
-      const ids = ['roleListHome', 'roleListWaiting', 'roleListInGame'];
-      ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = html;
-      });
-    }
-    renderRoleCatalog();
-
-    // ====== Helpers ======
+    // ===============================
+    // UI helpers
+    // ===============================
     function showScreen(screenId) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById(screenId).classList.add('active');
     }
 
     function normalizeServerUrl(url) {
-      return (url || "").trim().replace(/\/+$/, ""); // bỏ dấu / cuối
+      return (url || "").trim().replace(/\/+$/, "");
     }
 
     function connectSocket(serverUrl) {
@@ -443,7 +447,77 @@
         : `🎭 Vai trò của bạn: <span style="color:#ffd93d;">(đã ẩn)</span>`;
     }
 
-    // ====== Room actions ======
+    function renderRoleCatalog() {
+      const html = ROLE_CATALOG.map(r => `
+        <div class="tag">🎭 ${escapeHtml(r.name)} <small>( ${escapeHtml(r.desc)})</small></div>
+      `).join('');
+
+      ['roleListHome', 'roleListWaiting', 'roleListInGame'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+      });
+    }
+    renderRoleCatalog();
+
+    // ===============================
+    // Timer: chạy ở client
+    // ===============================
+    function clearClientTimer() {
+      if (phaseCountdownInterval) clearInterval(phaseCountdownInterval);
+      phaseCountdownInterval = null;
+      phaseEndsAtMs = null;
+    }
+
+    function phaseNameVi(phase) {
+      if (phase === 'night') return 'Đêm';
+      if (phase === 'discuss') return 'Bàn bạc';
+      if (phase === 'vote') return 'Vote';
+      if (phase === 'day') return 'Ban ngày';
+      if (phase === 'waiting') return 'Chờ';
+      return phase || '';
+    }
+
+    function setTimerDisplay(secLeft, phase) {
+      const el = document.getElementById('timerDisplay');
+      if (!el) return;
+      const s = Math.max(0, Math.ceil(secLeft));
+      el.textContent = `⏱️ ${phaseNameVi(phase)}: ${s}s`;
+    }
+
+    function startClientTimerForPhase(phase) {
+      clearClientTimer();
+      currentPhase = phase;
+
+      const durationSec = CLIENT_TIMERS[phase];
+      if (!durationSec) {
+        setTimerDisplay(0, phase);
+        return;
+      }
+
+      phaseEndsAtMs = Date.now() + durationSec * 1000;
+
+      // tick ngay
+      setTimerDisplay(durationSec, phase);
+
+      phaseCountdownInterval = setInterval(() => {
+        const leftMs = phaseEndsAtMs - Date.now();
+        const leftSec = leftMs / 1000;
+        setTimerDisplay(leftSec, phase);
+
+        if (leftMs <= 0) {
+          clearClientTimer();
+
+          // ✅ Tuỳ chọn: auto “đẩy” hành động khi hết giờ (client-only)
+          // Nhưng an toàn nhất là để server tự chốt.
+          // Ở đây mình KHÔNG tự gọi resolveVote/resolveNight từ client,
+          // vì server mới là nguồn sự thật.
+        }
+      }, 250);
+    }
+
+    // ===============================
+    // Room actions
+    // ===============================
     function createRoom() {
       const name = document.getElementById('playerName').value.trim();
       const serverUrl = normalizeServerUrl(document.getElementById('serverUrl').value);
@@ -493,7 +567,9 @@
       location.reload();
     }
 
-    // ====== Chat ======
+    // ===============================
+    // Chat
+    // ===============================
     function sendMessage() {
       const msg = document.getElementById('chatInput').value.trim();
       if (!msg) return;
@@ -501,7 +577,13 @@
       document.getElementById('chatInput').value = '';
     }
 
-    // ====== Select player ======
+    document.getElementById('chatInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    // ===============================
+    // Select player
+    // ===============================
     function selectPlayer(playerId, alive) {
       if (!alive) return;
       selectedTarget = playerId;
@@ -516,7 +598,9 @@
       document.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
     }
 
-    // ====== Socket listeners ======
+    // ===============================
+    // Socket listeners
+    // ===============================
     function setupSocketListeners() {
       socket.on('connect', () => console.log('✅ Connected:', socket.id));
 
@@ -533,27 +617,24 @@
         myRole = data.role;
         renderRoleBox();
         showScreen('gameScreen');
+
         renderGameState(data.roomData);
+
+        // ✅ Timer client chạy theo phase hiện tại
+        if (data.roomData && data.roomData.phase) startClientTimerForPhase(data.roomData.phase);
       });
 
       socket.on('gameStarted', (room) => {
         renderGameState(room);
+        if (room && room.phase) startClientTimerForPhase(room.phase);
       });
 
       socket.on('phaseChange', (room) => {
         renderGameState(room);
         clearSelect();
-      });
 
-      socket.on('timerTick', (t) => {
-        const sec = Math.ceil((t.leftMs || 0) / 1000);
-        const phaseName =
-          t.phase === 'night' ? 'Đêm' :
-          t.phase === 'discuss' ? 'Bàn bạc' :
-          t.phase === 'vote' ? 'Vote' : (t.phase || '');
-
-        const el = document.getElementById('timerDisplay');
-        if (el) el.textContent = `⏱️ ${phaseName}: ${sec}s`;
+        // ✅ Mỗi lần đổi phase: client tự đếm lại
+        if (room && room.phase) startClientTimerForPhase(room.phase);
       });
 
       socket.on('receiveMessage', (data) => {
@@ -566,6 +647,7 @@
       socket.on('seerResult', (data) => alert(`🔮 ${data.name} là: ${data.role}`));
 
       socket.on('gameEnd', (data) => {
+        clearClientTimer();
         document.getElementById('winnerDisplay').textContent = `🏆 ${data.winner} thắng!`;
         document.getElementById('endDetail').textContent = data.detail;
         showScreen('endScreen');
@@ -574,7 +656,9 @@
       socket.on('error', (msg) => alert(msg));
     }
 
-    // ====== Render UI ======
+    // ===============================
+    // Render UI
+    // ===============================
     function renderWaitingPlayers(players) {
       const container = document.getElementById('waitingPlayers');
       container.innerHTML = (players || []).map(p => `
@@ -588,7 +672,7 @@
     function renderGameState(room) {
       const phaseText =
         room.phase === 'night' ? '🌙 Ban đêm' :
-        room.phase === 'discuss' ? '☀️ Bàn bạc' :
+        room.phase === 'discuss' ? '☀️ Bàn bạc (sau đêm)' :
         room.phase === 'vote' ? '🗳️ Bỏ phiếu' :
         room.phase === 'day' ? '☀️ Ban ngày' : '⏳ Chờ...';
 
@@ -611,15 +695,13 @@
       renderActionPanel(room);
     }
 
-    // ====== Action panel (phụ thuộc phase backend đang dùng) ======
     function renderActionPanel(room) {
       const panel = document.getElementById('actionPanel');
 
-      // Night actions
       if (room.phase === 'night') {
         if (myRole === 'Sói') {
           panel.innerHTML = `
-            <h3>🐺 Chọn người cắn</h3>
+            <h3>🐺 Sói: Chọn người cắn</h3>
             <div class="tiny">Chọn 1 người ở danh sách rồi bấm.</div>
             <div class="btn-row">
               <button onclick="wolfBite()">Cắn người đã chọn</button>
@@ -628,7 +710,7 @@
           `;
         } else if (myRole === 'Bảo vệ') {
           panel.innerHTML = `
-            <h3>🛡️ Chọn người bảo vệ</h3>
+            <h3>🛡️ Bảo vệ: Chọn người bảo vệ</h3>
             <div class="tiny">Chọn 1 người ở danh sách rồi bấm.</div>
             <div class="btn-row">
               <button onclick="guardProtect()">Bảo vệ</button>
@@ -637,7 +719,7 @@
           `;
         } else if (myRole === 'Tiên tri') {
           panel.innerHTML = `
-            <h3>🔮 Chọn người soi</h3>
+            <h3>🔮 Tiên tri: Chọn người soi</h3>
             <div class="tiny">Chọn 1 người ở danh sách rồi bấm.</div>
             <div class="btn-row">
               <button onclick="seerView()">Soi</button>
@@ -647,7 +729,7 @@
         } else if (myRole === 'Phù thủy') {
           panel.innerHTML = `
             <h3>🧪 Phù thủy</h3>
-            <div class="tiny">Chọn 1 người rồi dùng thuốc.</div>
+            <div class="tiny">Chọn 1 người rồi dùng thuốc (nếu backend cho phép).</div>
             <div class="btn-row">
               <button onclick="witchSave()">Cứu</button>
               <button onclick="witchKill()">Giết</button>
@@ -655,18 +737,19 @@
             <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
           `;
         } else {
-          panel.innerHTML = `<div class="info-box">😴 Bạn đang ngủ... chờ quản trò hết đêm.</div>`;
+          panel.innerHTML = `<div class="info-box">😴 Bạn đang ngủ... chờ hết đêm.</div>`;
         }
         return;
       }
 
-      // Discuss phase (nếu backend có)
       if (room.phase === 'discuss') {
         panel.innerHTML = `
-          <h3>💬 Bàn bạc</h3>
+          <h3>💬 Bàn bạc (2 phút)</h3>
           <div class="info-box">
-            Hết giờ sẽ tự chuyển qua <b>Vote</b>.
-            <div class="tiny" style="margin-top:6px;">Nếu server hỗ trợ, có thể bấm Skip (thường chỉ host).</div>
+            Hết giờ sẽ tự chuyển qua <b>Vote</b> (nếu backend có quản trò).
+            <div class="tiny" style="margin-top:6px;">
+              Bạn có thể bấm <b>Skip</b> để chuyển sớm (nếu backend cho phép, thường chỉ host).
+            </div>
           </div>
           <div class="btn-row">
             <button class="btn-secondary" onclick="skipDiscuss()">⏭️ Skip</button>
@@ -676,7 +759,6 @@
         return;
       }
 
-      // Vote phase (nếu backend có)
       if (room.phase === 'vote') {
         panel.innerHTML = `
           <h3>🗳️ Bỏ phiếu</h3>
@@ -689,11 +771,11 @@
         return;
       }
 
-      // Fallback: nếu backend vẫn dùng 'day' để vote luôn
+      // fallback nếu backend vẫn dùng "day" để vote
       if (room.phase === 'day') {
         panel.innerHTML = `
           <h3>☀️ Ban ngày</h3>
-          <div class="tiny">Nếu backend của bạn vote trong phase 'day', dùng nút này.</div>
+          <div class="tiny">Nếu backend vote trong phase <b>day</b> thì dùng nút này.</div>
           <div class="btn-row">
             <button onclick="vote()">Vote người đã chọn</button>
             <button class="btn-secondary" onclick="clearSelect()">Bỏ chọn</button>
@@ -705,7 +787,9 @@
       panel.innerHTML = `<div class="info-box">⏳ Đang chờ...</div>`;
     }
 
-    // ====== Emits ======
+    // ===============================
+    // Emits
+    // ===============================
     function skipDiscuss() {
       if (!currentRoom) return;
       socket.emit('skipDiscuss', { roomId: currentRoom });
@@ -738,16 +822,12 @@
 
     function vote() {
       if (!selectedTarget) return alert('Chọn người để vote!');
-      // backend của bạn đang dùng event dayVote
       socket.emit('dayVote', { roomId: currentRoom, voteForId: selectedTarget });
     }
 
-    // Enter để gửi chat
-    document.getElementById('chatInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendMessage();
-    });
-
-    // Escape HTML để tránh bị chèn HTML vào UI
+    // ===============================
+    // Security: Escape HTML
+    // ===============================
     function escapeHtml(str) {
       return String(str ?? '')
         .replaceAll('&', '&amp;')
