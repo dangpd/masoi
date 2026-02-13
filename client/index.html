@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🐺 Ma Sói Online</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; min-height: 100vh; padding: 20px; }
@@ -12,69 +13,72 @@
     h1 { text-align: center; margin-bottom: 20px; font-size: 2.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
     .screen { display: none; }
     .screen.active { display: block; }
-    input, button, select { padding: 12px 20px; margin: 10px 5px; border: none; border-radius: 8px; font-size: 16px; }
+    input, button { padding: 12px 20px; margin: 10px 5px; border: none; border-radius: 8px; font-size: 16px; }
     input { background: rgba(255,255,255,0.9); color: #333; width: calc(100% - 10px); }
     button { background: #ff6b6b; color: white; cursor: pointer; font-weight: bold; transition: 0.3s; }
     button:hover { background: #ee5a52; transform: translateY(-2px); }
     button:disabled { background: #ccc; cursor: not-allowed; }
+
     .players { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
-    .player-card { background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; text-align: center; border: 2px solid transparent; transition: 0.3s; cursor: pointer; }
-    .player-card:hover { border-color: #ffd93d; transform: scale(1.05); }
-    .player-card.dead { opacity: 0.4; filter: grayscale(100%); }
+    .player-card { background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; text-align: center; border: 2px solid transparent; transition: 0.3s; cursor: pointer; user-select: none; }
+    .player-card:hover { border-color: #ffd93d; transform: scale(1.03); }
+    .player-card.dead { opacity: 0.4; filter: grayscale(100%); cursor: not-allowed; }
     .player-card.selected { border-color: #6bcf7f; background: rgba(107, 207, 127, 0.3); }
+
     .logs { background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; max-height: 200px; overflow-y: auto; margin: 20px 0; }
     .log-item { padding: 8px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px; }
+
     .chat { background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; max-height: 300px; overflow-y: auto; margin: 20px 0; }
     .chat-msg { padding: 8px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px; }
+
     .role-info { background: rgba(255,215,0,0.3); padding: 20px; border-radius: 10px; margin: 20px 0; border: 3px solid gold; text-align: center; font-size: 1.3em; font-weight: bold; }
     .phase-indicator { text-align: center; font-size: 1.5em; margin: 15px 0; padding: 15px; background: rgba(0,0,0,0.4); border-radius: 10px; }
     .action-panel { background: rgba(0,0,0,0.4); padding: 20px; border-radius: 10px; margin: 20px 0; }
     .info-box { background: rgba(100,200,255,0.3); padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #64c8ff; }
   </style>
 </head>
+
 <body>
   <div class="container">
-    <h1>🐺 Ma Sói Online</h1>
-
-    <!-- Màn hình chính -->
     <div id="homeScreen" class="screen active">
-      <input type="text" id="playerName" placeholder="Nhập tên của bạn" maxlength="20">
-      <input type="text" id="serverUrl" placeholder="URL Server (vd: http://localhost:3000)" value="http://localhost:3000">
-      <button noscript="createRoom()">🎮 Tạo phòng mới</button>
-      <input type="text" id="roomIdInput" placeholder="Nhập mã phòng">
-      <button noscript="joinRoom()">🚪 Vào phòng</button>
+      <input type="text" id="playerName" placeholder="Nhập tên của bạn" maxlength="20" />
+      <input type="text" id="serverUrl" placeholder="URL Server (vd: https://masoi-demo.onrender.com)"
+             value="https://masoi-demo.onrender.com" />
+      <button onclick="createRoom()">🎮 Tạo phòng mới</button>
+
+      <input type="text" id="roomIdInput" placeholder="Nhập mã phòng" />
+      <button onclick="joinRoom()">🚪 Vào phòng</button>
+
+      <div class="info-box" style="margin-top: 10px;">
+        Tip: Nếu bấm không thấy gì, mở DevTools (F12) tab Console để xem lỗi.
+      </div>
     </div>
 
-    <!-- Phòng chờ -->
     <div id="waitingScreen" class="screen">
       <h2>🏠 Phòng: <span id="roomIdDisplay"></span></h2>
       <div class="info-box">Chia sẻ mã phòng cho bạn bè! Cần 7-10 người để bắt đầu.</div>
       <div class="players" id="waitingPlayers"></div>
-      <button noscript="startGame()">▶️ Bắt đầu game</button>
-      <button noscript="leaveRoom()">🚪 Rời phòng</button>
+      <button onclick="startGame()">▶️ Bắt đầu game</button>
+      <button onclick="leaveRoom()">🚪 Rời phòng</button>
     </div>
 
-    <!-- Màn hình game -->
     <div id="gameScreen" class="screen">
       <div class="role-info" id="roleDisplay"></div>
       <div class="phase-indicator" id="phaseDisplay"></div>
-      
+
       <div class="logs" id="gameLogs"></div>
-      
       <div class="action-panel" id="actionPanel"></div>
-      
       <div class="players" id="gamePlayers"></div>
-      
+
       <div class="chat" id="chatBox"></div>
-      <input type="text" id="chatInput" placeholder="Nhập tin nhắn...">
-      <button noscript="sendMessage()">💬 Gửi</button>
+      <input type="text" id="chatInput" placeholder="Nhập tin nhắn..." />
+      <button onclick="sendMessage()">💬 Gửi</button>
     </div>
 
-    <!-- Màn hình kết thúc -->
     <div id="endScreen" class="screen">
       <h2 id="winnerDisplay"></h2>
       <p id="endDetail"></p>
-      <button noscript="location.reload()">🔄 Chơi lại</button>
+      <button onclick="location.reload()">🔄 Chơi lại</button>
     </div>
   </div>
 
@@ -89,17 +93,29 @@
       document.getElementById(screenId).classList.add('active');
     }
 
+    function connectSocket(serverUrl) {
+      // Chống tạo nhiều kết nối khi bấm nhiều lần
+      if (socket && socket.connected) return;
+
+      socket = io(serverUrl, { transports: ["websocket", "polling"] });
+      setupSocketListeners();
+    }
+
     function createRoom() {
       const name = document.getElementById('playerName').value.trim();
-      const serverUrl = document.getElementById('serverUrl').value.trim();
+      const serverUrl = document.getElementById('serverUrl').value.trim().replace(/\/+$/, ''); // bỏ / cuối
       if (!name) return alert('Vui lòng nhập tên!');
-      socket = io(serverUrl);
-      setupSocketListeners();
+      if (!serverUrl) return alert('Vui lòng nhập URL server!');
+
+      connectSocket(serverUrl);
+
       socket.emit('createRoom', { playerName: name }, (res) => {
-        if (res.success) {
+        if (res && res.success) {
           currentRoom = res.roomId;
           document.getElementById('roomIdDisplay').textContent = currentRoom;
           showScreen('waitingScreen');
+        } else {
+          alert('Tạo phòng thất bại!');
         }
       });
     }
@@ -107,22 +123,25 @@
     function joinRoom() {
       const name = document.getElementById('playerName').value.trim();
       const roomId = document.getElementById('roomIdInput').value.trim().toUpperCase();
-      const serverUrl = document.getElementById('serverUrl').value.trim();
+      const serverUrl = document.getElementById('serverUrl').value.trim().replace(/\/+$/, '');
       if (!name || !roomId) return alert('Vui lòng nhập đầy đủ thông tin!');
-      socket = io(serverUrl);
-      setupSocketListeners();
+      if (!serverUrl) return alert('Vui lòng nhập URL server!');
+
+      connectSocket(serverUrl);
+
       socket.emit('joinRoom', { roomId, playerName: name }, (res) => {
-        if (res.success) {
+        if (res && res.success) {
           currentRoom = roomId;
           document.getElementById('roomIdDisplay').textContent = currentRoom;
           showScreen('waitingScreen');
         } else {
-          alert(res.msg);
+          alert(res && res.msg ? res.msg : 'Vào phòng thất bại!');
         }
       });
     }
 
     function startGame() {
+      if (!currentRoom) return alert('Chưa có phòng!');
       socket.emit('startGame', { roomId: currentRoom });
     }
 
@@ -137,20 +156,29 @@
       document.getElementById('chatInput').value = '';
     }
 
-    function selectPlayer(playerId) {
+    function selectPlayer(playerId, alive) {
+      if (!alive) return;
       selectedTarget = playerId;
       document.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
-      document.getElementById('player-' + playerId).classList.add('selected');
+      const el = document.getElementById('player-' + playerId);
+      if (el) el.classList.add('selected');
     }
 
     function setupSocketListeners() {
+      socket.on('connect', () => console.log('✅ Connected:', socket.id));
+      socket.on('connect_error', (err) => {
+        console.error('❌ connect_error:', err);
+        alert('Không kết nối được server. Kiểm tra URL server + CORS trên backend.');
+      });
+
       socket.on('roomUpdate', (room) => {
         renderWaitingPlayers(room.players);
       });
 
       socket.on('yourRole', (data) => {
         myRole = data.role;
-        document.getElementById('roleDisplay').innerHTML = `🎭 Vai trò của bạn: <span style="color: #ffd93d;">${myRole}</span>`;
+        document.getElementById('roleDisplay').innerHTML =
+          `🎭 Vai trò của bạn: <span style="color:#ffd93d;">${myRole}</span>`;
         showScreen('gameScreen');
         renderGameState(data.roomData);
       });
@@ -170,13 +198,8 @@
         chatBox.scrollTop = chatBox.scrollHeight;
       });
 
-      socket.on('actionConfirm', (msg) => {
-        alert(msg);
-      });
-
-      socket.on('seerResult', (data) => {
-        alert(`🔮 ${data.name} là: ${data.role}`);
-      });
+      socket.on('actionConfirm', (msg) => alert(msg));
+      socket.on('seerResult', (data) => alert(`🔮 ${data.name} là: ${data.role}`));
 
       socket.on('gameEnd', (data) => {
         document.getElementById('winnerDisplay').textContent = `🏆 ${data.winner} thắng!`;
@@ -198,49 +221,52 @@
     }
 
     function renderGameState(room) {
-      document.getElementById('phaseDisplay').textContent = 
-        room.phase === 'night' ? '🌙 Ban đêm' : 
+      document.getElementById('phaseDisplay').textContent =
+        room.phase === 'night' ? '🌙 Ban đêm' :
         room.phase === 'day' ? '☀️ Ban ngày' : '⏳ Chờ...';
-      
-      const logsHtml = room.logs.map(log => `<div class="log-item">${log}</div>`).join('');
-      document.getElementById('gameLogs').innerHTML = logsHtml;
 
-      const playersHtml = room.players.map(p => `
-        <div class="player-card ${p.alive ? '' : 'dead'}" id="player-${p.id}" noscript="selectPlayer('${p.id}')">
-          <div style="font-size: 2em;">${p.alive ? '👤' : '💀'}</div>
-          <div>${p.name}</div>
-          <div style="font-size: 0.8em;">${p.alive ? 'Sống' : 'Chết'}</div>
-        </div>
-      `).join('');
-      document.getElementById('gamePlayers').innerHTML = playersHtml;
+      document.getElementById('gameLogs').innerHTML =
+        room.logs.map(log => `<div class="log-item">${log}</div>`).join('');
+
+      document.getElementById('gamePlayers').innerHTML =
+        room.players.map(p => `
+          <div class="player-card ${p.alive ? '' : 'dead'}"
+               id="player-${p.id}"
+               onclick="selectPlayer('${p.id}', ${p.alive})">
+            <div style="font-size: 2em;">${p.alive ? '👤' : '💀'}</div>
+            <div>${p.name}</div>
+            <div style="font-size: 0.8em;">${p.alive ? 'Sống' : 'Chết'}</div>
+          </div>
+        `).join('');
 
       renderActionPanel(room);
     }
 
     function renderActionPanel(room) {
       const panel = document.getElementById('actionPanel');
+
       if (room.phase === 'night') {
         if (myRole === 'Sói') {
           panel.innerHTML = `
             <h3>🐺 Chọn người cắn</h3>
-            <button noscript="wolfBite()">Cắn người đã chọn</button>
-            <button noscript="endNight()">Kết thúc đêm</button>
+            <button onclick="wolfBite()">Cắn người đã chọn</button>
+            <button onclick="endNight()">Kết thúc đêm</button>
           `;
         } else if (myRole === 'Bảo vệ') {
           panel.innerHTML = `
             <h3>🛡️ Chọn người bảo vệ</h3>
-            <button noscript="guardProtect()">Bảo vệ người đã chọn</button>
+            <button onclick="guardProtect()">Bảo vệ người đã chọn</button>
           `;
         } else if (myRole === 'Tiên tri') {
           panel.innerHTML = `
             <h3>🔮 Chọn người soi</h3>
-            <button noscript="seerView()">Soi người đã chọn</button>
+            <button onclick="seerView()">Soi người đã chọn</button>
           `;
         } else if (myRole === 'Phù thủy') {
           panel.innerHTML = `
             <h3>🧪 Chọn hành động</h3>
-            <button noscript="witchSave()">Cứu người đã chọn</button>
-            <button noscript="witchKill()">Giết người đã chọn</button>
+            <button onclick="witchSave()">Cứu người đã chọn</button>
+            <button onclick="witchKill()">Giết người đã chọn</button>
           `;
         } else {
           panel.innerHTML = `<div class="info-box">😴 Bạn đang ngủ... Chờ sáng nhé!</div>`;
@@ -248,7 +274,7 @@
       } else if (room.phase === 'day') {
         panel.innerHTML = `
           <h3>🗳️ Bỏ phiếu treo cổ</h3>
-          <button noscript="vote()">Vote người đã chọn</button>
+          <button onclick="vote()">Vote người đã chọn</button>
         `;
       } else {
         panel.innerHTML = '';
@@ -259,32 +285,26 @@
       if (!selectedTarget) return alert('Chọn mục tiêu trước!');
       socket.emit('wolfBite', { roomId: currentRoom, targetId: selectedTarget });
     }
-
     function guardProtect() {
       if (!selectedTarget) return alert('Chọn người bảo vệ!');
       socket.emit('guardProtect', { roomId: currentRoom, targetId: selectedTarget });
     }
-
     function seerView() {
       if (!selectedTarget) return alert('Chọn người soi!');
       socket.emit('seerView', { roomId: currentRoom, targetId: selectedTarget });
     }
-
     function witchSave() {
       if (!selectedTarget) return alert('Chọn người cứu!');
       socket.emit('witchAction', { roomId: currentRoom, saveId: selectedTarget, killId: null });
     }
-
     function witchKill() {
       if (!selectedTarget) return alert('Chọn người giết!');
       socket.emit('witchAction', { roomId: currentRoom, saveId: null, killId: selectedTarget });
     }
-
     function vote() {
       if (!selectedTarget) return alert('Chọn người vote!');
       socket.emit('dayVote', { roomId: currentRoom, voteForId: selectedTarget });
     }
-
     function endNight() {
       socket.emit('endNight', { roomId: currentRoom });
     }
